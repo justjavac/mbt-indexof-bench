@@ -9,13 +9,13 @@ Linux / Windows / macOS。
 - **Windows MSVC native 的 `core` find 慢约 100 倍**：64K 全扫 336 µs，而
   Linux native 4.5 µs、js 1.6 µs。同一构建下手写标量循环速度正常
   （26 µs），瓶颈在 core 库的 MSVC 路径，与 MoonBit 代码生成无关。
-- **js 是最快的后端**：V8 的 memchr 级搜索，多数扫描在 0.2~1.7 µs。
-  唯一异常：mixed 数据集搜 `★` 在三个平台都慢 20~50 倍
-  （46~111 µs），同一文本手写 `charCodeAt` 循环速度正常。
-- **wasm 的 `core` find 有 128 位 SIMD**（4~8 µs）；**wasm-gc 是标量**
-  （19~55 µs）。
+- **js 是最快的后端**：V8 的 memchr 级搜索，多数扫描在 0.2–1.7 µs。
+  唯一异常：mixed 数据集搜 `★` 在三个平台都慢 20–50 倍
+  （46–111 µs），同一文本手写 `charCodeAt` 循环速度正常。
+- **wasm 的 `core` find 有 128 位 SIMD**（4–8 µs）；**wasm-gc 是标量**
+  （19–55 µs）。
 - **llvm 后端全平台标量**：`core` find 在 Linux/macOS 比 C native 慢
-  4~10 倍，在 Windows 反而比 MSVC native 快约 8 倍。
+  4–10 倍，在 Windows 反而比 MSVC native 快约 8 倍。
 - **边界检查**：native、llvm、wasm-gc 零开销；wasm 约 2 倍。
 - **浅层搜索**（needle 在前十几个码元内命中）由调用开销主导，
   各实现无差异。
