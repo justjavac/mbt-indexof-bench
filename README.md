@@ -1,8 +1,30 @@
 # mbt-indexof-bench
 
-字符串 indexOf 搜索在全部 MoonBit 后端（`native`、`llvm`、`js`、`wasm`、
-`wasm-gc`）上的性能对比，同一份纯 MoonBit 代码，覆盖
-Linux / Windows / macOS。
+字符串 `indexOf` 搜索在全部 MoonBit 后端（`native`、`llvm`、`js`、`wasm`、
+`wasm-gc`）上的性能对比。
+
+## 背景
+
+在优化 [`justjavac/html`](https://github.com/justjavac/moonbit-html)
+时发现 native 后端解析反而慢于 js/wasm。本仓库把搜索操作单独抽出来
+定位原因。
+
+**三个最简纯 MoonBit 实现**
+
+1. 标准库 `StringView::find`
+1. 无检查的标量循环
+1. 带检查的标量循环
+
+**65,536 码元的固定种子数据集**
+
+1. ascii 深扫描
+1. ascii 浅扫描
+1. html 标签汤
+1. CJK
+1. 混合（ASCII / CJK / 符号）
+1. 无匹配（全扫）
+
+另加 3 个多码元 needle（`href="/x"`、`</article>`、`语言`）。
 
 ## 结论
 
@@ -20,38 +42,30 @@ Linux / Windows / macOS。
 - **浅层搜索**（needle 在前十几个码元内命中）由调用开销主导，
   各实现无差异。
 
-## 简介
-
-在优化 [`justjavac/html`](https://github.com/justjavac/moonbit-html)
-时发现 native 后端解析反而慢于 js/wasm。本仓库把搜索操作单独抽出来
-定位原因：三个最简纯 MoonBit 实现（标准库 `StringView::find`、无检查
-与带检查的标量循环），在 6 种 65,536 码元的固定种子数据集（ascii
-深/浅扫描、html、CJK、混合、无匹配，外加 3 个多码元 needle）上逐
-后端计时，oracle 测试保证各实现结果一致。
-
 ## 本地运行
+
+全部使用 nightly 工具链：
 
 ```sh
 moon bench --target native --release
-moon bench --target llvm --release   # 需要 nightly 工具链
+moon bench --target llvm --release
 moon bench --target js --release     # 需要 Node.js
 moon bench --target wasm --release
 moon bench --target wasm-gc --release
-moon test --target all               # oracle 一致性检查
+moon test --target all               # 一致性检查
 ```
 
 ## CI
 
-`.github/workflows/bench.yml` 运行矩阵
-（ubuntu / windows / macos）×（latest / nightly 工具链），结果发布在
-step summary 和 artifacts 中。实验性的 `llvm` 目标在 nightly 通道上运行。
+`.github/workflows/bench.yml` 在 ubuntu / windows / macos 上运行，全部
+使用 nightly 工具链，结果发布在 step summary 和 artifacts 中。
 
 ## 结果
 
-来自 2026-11-14 的 CI 运行（MoonBit latest 稳定版；`llvm` 取自
-nightly）。文本为 65,536 个 UTF-16 码元，数值越小越好。
+来自 2026-11-14 的 CI 运行（MoonBit nightly 工具链）。文本为 65,536
+个 UTF-16 码元，数值越小越好。
 
-### ubuntu-latest（llvm：nightly 工具链；其余：latest）
+### ubuntu-latest
 
 | 用例 | native | llvm | js | wasm | wasm-gc |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -83,7 +97,7 @@ nightly）。文本为 65,536 个 UTF-16 码元，数值越小越好。
 | mbt checked / html close | 7.05 µs | 97.75 µs | 27.01 µs | 8.03 µs | 54.46 µs |
 | mbt checked / cjk word | 3.80 µs | 41.79 µs | 1.53 µs | 4.40 µs | 19.29 µs |
 
-### windows-latest（llvm：nightly 工具链；其余：latest）
+### windows-latest
 
 | 用例 | native | llvm | js | wasm | wasm-gc |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -115,7 +129,7 @@ nightly）。文本为 65,536 个 UTF-16 码元，数值越小越好。
 | mbt checked / html close | 636.60 µs | 98.90 µs | 28.78 µs | 7.62 µs | 52.12 µs |
 | mbt checked / cjk word | 350.37 µs | 42.97 µs | 2.45 µs | 4.16 µs | 20.36 µs |
 
-### macos-latest（llvm：nightly 工具链；其余：latest）
+### macos-latest
 
 | 用例 | native | llvm | js | wasm | wasm-gc |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -146,8 +160,3 @@ nightly）。文本为 65,536 个 UTF-16 码元，数值越小越好。
 | mbt checked / html href | 3.65 µs | 35.77 µs | 885.8 ns | 6.62 µs | 25.40 µs |
 | mbt checked / html close | 8.89 µs | 90.38 µs | 36.82 µs | 11.76 µs | 51.50 µs |
 | mbt checked / cjk word | 4.33 µs | 31.37 µs | 3.82 µs | 6.50 µs | 26.21 µs |
-
-
-## 许可证
-
-MIT
