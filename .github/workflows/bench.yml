@@ -1,0 +1,69 @@
+name: bench
+
+on: [push, pull_request]
+
+jobs:
+  bench:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        channel: [latest, nightly]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 MoonBit
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s ${{ matrix.channel }}
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+
+      - name: 在 Windows 上安装 MoonBit
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+          $env:MOONBIT_INSTALL_VERSION = "${{ matrix.channel }}"
+          irm https://cli.moonbitlang.com/install/powershell.ps1 | iex
+          "C:\Users\runneradmin\.moon\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: moon version --all
+
+      - name: 为实验性 llvm 后端打包 core
+        if: ${{ matrix.channel == 'nightly' }}
+        shell: bash
+        run: moon -C "$HOME/.moon/lib/core" bundle --warn-list -a --target llvm || true
+
+      - name: Bench
+        shell: bash
+        run: |
+          set -o pipefail
+          targets="native js wasm wasm-gc"
+          if [ "${{ matrix.channel }}" = "nightly" ]; then
+            targets="native llvm js wasm wasm-gc"
+          fi
+          for target in $targets; do
+            echo "## ${{ matrix.os }} / ${{ matrix.channel }} / ${target}" | tee -a results.md
+            echo "" >> results.md
+            if moon bench --target "$target" --release 2>&1 | tee out.txt; then
+              echo '```' >> results.md
+              grep -E "bench .*(ok|FAILED)|ns ±|µs ±|ms ±| s ±|Total tests" out.txt >> results.md || true
+              echo '```' >> results.md
+            else
+              echo "_(该目标在此工具链上运行失败或不受支持)_" >> results.md
+            fi
+            echo "" >> results.md
+          done
+
+      - name: 汇总
+        shell: bash
+        run: cat results.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-${{ matrix.os }}-${{ matrix.channel }}
+          path: results.md
