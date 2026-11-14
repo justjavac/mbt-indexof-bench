@@ -149,7 +149,7 @@ let mixed : String = {
 }
 
 ///|
-/// 纯 ASCII 字母和数字，完全没有 `<`：全扫描最坏情况。
+/// 纯 ASCII 小写字母，完全没有 `<`：全扫描最坏情况。
 let no_match : String = build(fn(buf) {
   let gen = { state: 31337, }
   for _ in 0..<size {
